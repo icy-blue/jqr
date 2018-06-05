@@ -1,15 +1,29 @@
 // 18.5.29
 // by ftm
 
+// for dev
+void motor(int x, int y) {}
+void servo(int x, int y) {}
+int second(int x);
+void cls() {}
+void locate(int x, int y) {}
+int getadc(int x) {}
+int geteadc(int x) {}
+
 // const datas
 int frontBaceValue[] = {};
 int backBaceValue[] = {};
-int leftBaceValue = x;
-int rightBaceValue = x;
+int leftBaceValue = 2001;
+int rightBaceValue = 2001;
 
 int colorA_baceValue[] = {};
 int colorB_baceValue[] = {};
 
+int turnplateAngle[] = {};
+
+#define PLATFORM_DOWN (!getport(9))
+#define PLATFORM_MID getport(8)
+#define PLATFORM_UP getport(7)
 
 #define POS_CENTER x
 
@@ -19,20 +33,25 @@ int colorB_baceValue[] = {};
 #define VERY_SLOW_SPEED 50
 
 #define CLAW_SERVO 4
-#define PLATFORM_SERVO x
-#define HOOK_SERVO x
+#define HOOK_SERVO 3
+#define TURNPLATE_SERVO 2
 
-#define CATCH_ANGLE x
-#define RELEASE_ANGLE x
+#define PLATFORM_MOTOR 2
+#define LEFT_MOTOR 4
+#define RIGHT_MOTOR 1
 
-#define OBJECT_NEAR_SENSOR_VALUE x
+#define CATCH_ANGLE 2001
+#define RELEASE_ANGLE 2001
+#define WHIDE_ANGLE 2001
+
+#define OBJECT_NEAR_SENSOR_VALUE 2001
 
 
 // robot datas
 int position;
 int direction;
-int platformState;
-int hookState;
+int calwState; // 1catch 2release 3wide
+int platformState; // 3up 2mid 1down
 // 棰滆壊锛?绌?1榛?2钃?3缁?4鐧?5绾?
 int objectColor;
 int catchedNum[9] = {0}; // 宸茬粡鎶撳彇鐨勭墿鍧楃殑涓暟
@@ -42,7 +61,20 @@ void moveTo(int destnation); // 浠庡綋鍓嶄綅缃嚭鍙戣蛋鍒版寚瀹
 int catchObject(); // 澶瑰瓙鎶撳彇鐗╁潡锛岃繑鍥炵墿鍧楅鑹?
 void releaseObject(); // 澶瑰瓙閲婃斁鐗╁潡
 void platformMove(char* op); // 璋冩暣澶瑰瓙骞冲彴楂樺害锛屽弬鏁帮細"up","mid","down"
+void catchObjectByHook(int op); // 浣跨敤閽╁瓙鎶婄墿鍧楁嫋鍒板悎閫備綅缃悗鎶撳彇
 
+int onLine(char* op);
+int objectNear();
+
+void moveToCenter();
+void turnToOnCenter(int targetDirection);
+void moveFromCenterTo(int destnation);
+void moveWithCountingLine(int lineNum, int op);
+
+
+int main() {
+
+}
 
 // function : check whether a ground sensor is on line
 // examples: onLine("f1"); onLine("b3"); onLine("l"); onLine("r");
@@ -154,6 +186,57 @@ void moveFromCenterTo(destnation) {
   position = destnation;
 } 
 
+// function : line track with counting line
+// op > 0, move front; op < 0, move back 
+// we only use left sensor when counting line
+void moveWithCountingLine(int lineNum, int op) {  
+  if (!lineNum) return;
+  
+  countLine("init");
+  while (lineNum) {
+    trickLine(op);
+    if (countLine("l")) {
+      lineNum --;
+    }
+  }
+
+  setSpeed(0, 0);
+}
+
+// function : line track whih time limit
+// op > 0, move front; op < 0, move back 
+int moveWithTime(float timeLimit, int op) {
+  float startTime = second(1);
+  while (second(1) - startTime < timeLimit) {
+    trickLine(op);
+  }
+}
+
+// function : rotate whih counting line
+// op > 0, turn right; op < 0, turn left 
+void turnWithCountingLine(int lineNum, int op) {
+  if (!lineNum) return;
+  
+  char* sid;
+  if (op > 0) {
+    sid = "f4";
+    setSpeed(MID_SPEED, -MID_SPEED);
+  }
+  else {
+    sid = "f1";
+    setSpeed(-MID_SPEED, MID_SPEED);
+  }
+
+  countLine("init");
+  while (lineNum) {
+    if (countLine(sid)) {
+      lineNum --;
+    }
+  }
+
+  setSpeed(0, 0);
+}
+
 // function : trick line
 void trickLine(int op) {
   int s1, s2, s3, s4;
@@ -229,57 +312,6 @@ void approachTarget() {
   setSpeed(0, 0);
 }
 
-// function : line track with counting line
-// op > 0, move front; op < 0, move back 
-// we only use left sensor when counting line
-void moveWithCountingLine(int lineNum, int op) {  
-  if (!lineNum) return;
-  
-  countLine("init");
-  while (lineNum) {
-    trickLine(op);
-    if (countLine("l")) {
-      lineNum --;
-    }
-  }
-
-  setSpeed(0, 0);
-}
-
-// function : line track whih time limit
-// op > 0, move front; op < 0, move back 
-int moveWithTime(float timeLimit, int op) {
-  float startTime = second(1);
-  while (second(1) - startTime < timeLimit) {
-    trickLine(op);
-  }
-}
-
-// function : rotate whih counting line
-// op > 0, turn right; op < 0, turn left 
-void turnWithCountingLine(int lineNum, int op) {
-  if (!lineNum) return;
-  
-  char* sid;
-  if (op > 0) {
-    sid = "f4";
-    setSpeed(MID_SPEED, -MID_SPEED);
-  }
-  else {
-    sid = "f1";
-    setSpeed(-MID_SPEED, MID_SPEED);
-  }
-
-  countLine("init");
-  while (lineNum) {
-    if (countLine(sid)) {
-      lineNum --;
-    }
-  }
-
-  setSpeed(0, 0);
-}
-
 // function : line count
 // sid : id of line count sensor
 // before use, countLine("init") first
@@ -311,9 +343,9 @@ int countLine(char* sid) {
 // function : set motor speed
 void setSpeed(int leftSpeed, int rightSpeed) {
   // left-motor's id is 4
-  motor(4, -leftSpeed);
+  motor(LEFT_MOTOR, -leftSpeed);
   // right-motor's id is 1
-  motor(1, -rightSpeed);
+  motor(RIGHT_MOTOR, -rightSpeed);
 }
 
 // function : print error log and stop progrem
@@ -326,8 +358,17 @@ void throwError(char* where, char* errLog) {
 } 
 
 // function : catch object
+// you should make sure object is in front of you and not too far
 int catchObject() {
+  servo(CLAW_SERVO, RELEASE_ANGLE);
+  calwState = 2;
+  if (!objectNear()) {
+    setSpeed(SLOW_SPEED, SLOW_SPEED);
+    while(!objectNear()) { ; }
+    setSpeed(0, 0);
+  }
   servo(CLAW_SERVO, CATCH_ANGLE);
+  calwState = 1;
   wait(0.5);
     return colorDiscrimination();
 }
@@ -335,6 +376,7 @@ int catchObject() {
 // function : release object
 void releaseObject() {
   servo(CLAW_SERVO, RELEASE_ANGLE);
+  calwState = 2;
   wait(0.5);
 }
 
@@ -356,16 +398,59 @@ int equal(int a,int b,int x) {
 // function : platform rise or fall
 // op : "up" "mid" "down"
 void platformMove(char* op) {
+  if (calwState == 3) {
+    servo(CLAW_SERVO, RELEASE_ANGLE);
+    calwState = 2;
+  }
   if (op[0] == 'u') {
-
+    motor(PLATFORM_MOTOR, -400); 
+    while (!PLATFORM_UP) { ; }
+    motor(PLATFORM_MOTOR, 0);
+    platformState = 3;
   }
   else if (op[0] == 'd') {
-
+    motor(PLATFORM_MOTOR, 400); 
+    while (!PLATFORM_DOWN) { ; }
+    motor(PLATFORM_MOTOR, 0);
+    platformState = 1;
   }
   else if (op[0] == 'm') {
-
+    if (platformState == 2) { 
+      if (PLATFORM_MID) return;
+      else platformMove("down");
+    }
+    if (platformState == 3) {
+      motor(PLATFORM_MOTOR, 400);
+    }
+    else if (platformState == 1) {
+      motor(PLATFORM_MOTOR, -400);
+    }
+    while(!PLATFORM_MID) { ; }
+    motor(PLATFORM_MOTOR, 0);
+    platformState = 2;
   }
   else {
     throwError("platformMove", "unknown order");
   }
+}
+
+// function : in task2, catch object by hook
+// op : 1a 2b 3c 4d 5e
+void catchObjectByHook(int op) {
+  servo(CLAW_SERVO, WHIDE_ANGLE);
+  calwState = 3;
+  servo(HOOK_SERVO, 120);
+  servo(TURNPLATE_SERVO, turnplateAngle[op]);
+  approachTarget();
+  servo(HOOK_SERVO, 50); wait(0.5);
+  setSpeed(-200, -200);
+  // servo(HOOK_SERVO, 45); wait(0.2);
+  servo(HOOK_SERVO, 40); wait(0.3);
+  servo(TURNPLATE_SERVO, 65); wait(0.2);
+  // servo(HOOK_SERVO, 50); wait(0.2);
+  // servo(HOOK_SERVO, 55); wait(0.2);
+  // servo(HOOK_SERVO, 60); wait(0.2);
+  servo(HOOK_SERVO, 120); wait(0.5);
+  setSpeed(0, 0);
+  return catchObject();
 }
