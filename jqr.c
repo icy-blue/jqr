@@ -128,55 +128,117 @@ void moveFromCenterTo(destnation) {
   moveWithCountingLine(getLineNumToCenter(destnation), 1);
 } 
 
+// function : trick line
+void trickLine(int op) {
+  int s1, s2, s3, s4;
+  int lspeed, rspeed;
+  if (op < 0) op = -1; else op = 1;
+  if (op == 1) {
+    s1 = onLine("f1");
+    s2 = onLine("f2");
+    s3 = onLine("f3");
+    s4 = onLine("f4");
+  }
+  else if (op == -1) {
+    s1 = onLine("b1");
+    s2 = onLine("b2");
+    s3 = onLine("b3");
+    s4 = onLine("b4");
+  }
+
+  if ((s2 && s3) || (s1 && s4)) {
+    lspeed = FAST_SPEED; rspeed = FAST_SPEED;
+  }
+  else if (s2 && !s3) {
+    lspeed = MID_SPEED; rspeed = FAST_SPEED;
+  }
+  else if (!s2 && s3) {
+    lspeed = FAST_SPEED; rspeed = MID_SPEED;
+  }
+  else if (s1) {
+    lspeed = SLOW_SPEED; rspeed = FAST_SPEED;
+  }
+  else if (s4) {
+    lspeed = FAST_SPEED; rspeed = SLOW_SPEED;
+  }
+
+  if (objectNear()) {
+    lspeed /= 2; rspeed /= 2;
+  }
+
+  setSpeed(lspeed * op, rspeed * op);
+}
+
 // function : line track with counting line
 // op > 0, move front; op < 0, move back 
-// we use sensor front_1 and front_4 when counting line
+// we only use left sensor when counting line
 int moveWithCountingLine(int lineNum, int op) { 
-  int f1, f2, f3, f4;
-  while (lineNum) {
-    f1 = onLine("f1");
-    f2 = onLine("f2");
-    f3 = onLine("f3");
-    f4 = onLine("f4");
+  int sl;  int cntB = 0, cntW = 0, crossingLine = 0;
 
-    // track line
-    if (!f1 && !f2 && !f3 && !f4) {
-      setSpeed(FAST_SPEED, FAST_SPEED);
-    }
-    else if (!f1 && f2 && !f3 && !f4) {
-      setSpeed(MID_SPEED, FAST_SPEED);
-    }
-    else if (!f1 && !f2 && f3 && !f4) {
-      setSpeed(FAST_SPEED, MID_SPEED);
-    }
-    else if (f1 && !f2 && !f3 && !f4) {
-      setSpeed(VERY_SLOW_SPEED, SLOW_SPEED);
-    }
-    else if (!f1 && !f2 && !f3 && f4) {
-      setSpeed(SLOW_SPEED, VERY_SLOW_SPEED);
-    }
-    
+  while (lineNum) {
+    trickLine(op);
     // count line
-    if (f1 && f4 && !crossingLine) {
+    if (sl) { 
+      if (cntB < 100) cntB ++; 
+      cntW = 0;
+    }
+    else {
+      if (cntW < 100) cntW++;
+      cntB = 0; 
+    }
+
+    if (cntB >= 3 && !crossingLine) {
       crossingLine = 1;
       lineNum --;
-    }
-    else if (!f1 && !f4) {
-      corossingLine = 0;
+    } 
+    if (cntW >= 3 && crossingLine) {
+      crossingLine = 0;
     }
   }
+  setSpeed(0, 0);
 }
 
 // function : line track whih counting line
-// op > 0, turn right; op < 0, turn left 
+// op > 0, move front; op < 0, move back 
 int moveWithTime(int timeLimit, int op) {
-  
+  float startTime = second(1);
+  while (second(1) - startTime < timeLimit) {
+    trickLine(op);
+  }
 }
 
 // function : rotate whih time limit
-// op > 0, move front; op < 0, move back 
+// op > 0, turn right; op < 0, turn left 
 int turnWithCountingLine(int lineNum, int op) {
+  int s; 
+  if (op > 0) {
+    setSpeed(MID_SPEED, -MID_SPEED);
+  }
+  else {
+    setSpeed(-MID_SPEED, MID_SPEED);
+  }
+  while (lineNum) {
+    if (op < 0) { s = onLine("f1"); }
+    else { s = onLine("f4"); }
 
+    if (s) { 
+      if (cntB < 100) cntB ++; 
+      cntW = 0;
+    }
+    else {
+      if (cntW < 100) cntW++;
+      cntB = 0; 
+    }
+
+    if (cntB >= 3 && !crossingLine) {
+      crossingLine = 1;
+    } 
+    if (cntW >= 3 && crossingLine) {
+      crossingLine = 0;
+      lineNum --;
+    }
+  }
+  setSpeed(0, 0);
 }
 
 // function : set motor speed
