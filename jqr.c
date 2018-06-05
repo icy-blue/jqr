@@ -14,13 +14,15 @@ int sensorBaceValueRight = x;
 #define SLOW_SPEED 100
 #define VERY_SLOW_SPEED 50
 
+#define OBJECT_NEAR_SENSOR_VALUE x
+
 
 // robot datas
 int position;
 int direction;
 
 
-// function : check if a ground sensor is on line
+// function : check whether a ground sensor is on line
 // examples: onLine("f1"); onLine("b3"); onLine("l"); onLine("r");
 int onLine(char* op) {
   // front : f1~4 -> eacd1~4
@@ -56,6 +58,13 @@ int onLine(char* op) {
 
   // else all
   throwError("onLine", "unknown sensor type");
+}
+
+// function : check whether an object is close to robot 
+int objectNear() {
+  // the bigger, the closer
+  if (getadc(5) > OBJECT_NEAR_SENSOR_VALUE) return 1;
+  else return 0;
 }
 
 // function : move robot from it's positon to destnation
@@ -119,11 +128,70 @@ void moveFromCenterTo(destnation) {
   moveWithCountingLine(getLineNumToCenter(destnation), 1);
 } 
 
+// function : line track with counting line
+// op > 0, move front; op < 0, move back 
+// we use sensor front_1 and front_4 when counting line
+int moveWithCountingLine(int lineNum, int op) { 
+  int f1, f2, f3, f4;
+  while (lineNum) {
+    f1 = onLine("f1");
+    f2 = onLine("f2");
+    f3 = onLine("f3");
+    f4 = onLine("f4");
+
+    // track line
+    if (!f1 && !f2 && !f3 && !f4) {
+      setSpeed(FAST_SPEED, FAST_SPEED);
+    }
+    else if (!f1 && f2 && !f3 && !f4) {
+      setSpeed(MID_SPEED, FAST_SPEED);
+    }
+    else if (!f1 && !f2 && f3 && !f4) {
+      setSpeed(FAST_SPEED, MID_SPEED);
+    }
+    else if (f1 && !f2 && !f3 && !f4) {
+      setSpeed(VERY_SLOW_SPEED, SLOW_SPEED);
+    }
+    else if (!f1 && !f2 && !f3 && f4) {
+      setSpeed(SLOW_SPEED, VERY_SLOW_SPEED);
+    }
+    
+    // count line
+    if (f1 && f4 && !crossingLine) {
+      crossingLine = 1;
+      lineNum --;
+    }
+    else if (!f1 && !f4) {
+      corossingLine = 0;
+    }
+  }
+}
+
+// function : line track whih counting line
+// op > 0, turn right; op < 0, turn left 
+int moveWithTime(int timeLimit, int op) {
+  
+}
+
+// function : rotate whih time limit
+// op > 0, move front; op < 0, move back 
+int turnWithCountingLine(int lineNum, int op) {
+
+}
+
+// function : set motor speed
+int setSpeed(int leftSpeed, int rightSpeed) {
+  // left-motor's id is 4
+  motor(4, -leftSpeed);
+  // right-motor's id is 1
+  motor(1, -rightSpeed);
+}
+
 // function : print error log and stop progrem
 void throwError(char* where, char* errLog) {
   cls();
   locate(1,1); printf("ERROR");
   locate(2,1); printf("at %s", where);
   locate(3,1); printf("%s", errLog);
-  while(1) { ; }
+  while (1) { ; }
 } 
