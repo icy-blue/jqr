@@ -2,18 +2,18 @@
 // by ftm
 
 // for dev
-//  void motor(int x, int y) {}
-//  void servo(int x, int y) {}
-//  int seconds(int x) { return 0; }
-//  void cls() {}
-//  void locate(int x, int y) {}
-//  int getadc(int x) { return 0; }
-//  int geteadc(int x) { return 0; }
-//  void wait(float x) {}
-//  int getport(int x) { return 0; }
-//  int selector() { return 0; }
-//  void sound(int x, int y) {}
-//  #include <stdio.h>
+//   void motor(int x, int y) {}
+//   void servo(int x, int y) {}
+//   int seconds(int x) { return 0; }
+//   void cls() {}
+//   void locate(int x, int y) {}
+//   int getadc(int x) { return 0; }
+//   int geteadc(int x) { return 0; }
+//   void wait(float x) {}
+//   int getport(int x) { return 0; }
+//   int selector() { return 0; }
+//   void sound(int x, int y) {}
+//   #include <stdio.h>
 
 // const datas
 int frontBaceValue[] = { -1, 478, 617, 435, 434 };
@@ -44,7 +44,6 @@ int turnplateBackAngle[3][6] = { { -1, -1, -1, -1, -1, -1 },
 #define FAST_SPEED 700
 #define MID_SPEED 400
 #define SLOW_SPEED 150
-#define VERY_SLOW_SPEED 70
 
 #define CLAW_SERVO 4
 #define HOOK_SERVO 3
@@ -86,6 +85,7 @@ void correctSensors();
 
 void moveTo(int destination); // ??????????????
 int catchObject(); // ??????,???????
+int autoCatchObject();
 void releaseObject(); // ??????
 void platformMove(char* op); // ????????,??:"up","mid","down"
 int catchObjectByHook(int id, int op); // ????????????????
@@ -109,11 +109,11 @@ int getLineNumToCenter(int pos);
 int getLineNumWhenTurnTo(int tarDir);
 int reverseDirection(int dir);
 
+void init();
 void clawTo(int angle);
 void setSpeed(int leftSpeed, int rightSpeed);
 void throwError(char* where, char* errLog);
 int equal(int a,int b,int x);
-void init();
 void checkDirection(int dir);
 void checkPosition(int pos);
 
@@ -131,7 +131,18 @@ int main(void)
     moveWithCountingLine(3, 1, FAST_SPEED);
   }
   else if (op == 2) {
-    turnWithCountingLine(3, 1);
+    setSpeed(FAST_SPEED, FAST_SPEED);
+    wait(1);
+    setSpeed(0, 0);
+    wait(3);
+    setSpeed(MID_SPEED, MID_SPEED);
+    wait(1);
+    setSpeed(0, 0);
+    wait(3);
+    setSpeed(SLOW_SPEED, SLOW_SPEED);
+    wait(1);
+    setSpeed(0, 0);
+    wait(3);
   }
   else if (op == 3) {
     approachTarget();
@@ -164,6 +175,15 @@ int main(void)
   else if (op == 9) {
     turnWithCountingLine(100, 1);
   }
+  else if(op == 10) {
+    init();
+    while(1) {
+      catchObject();
+      wait(1);
+      releaseObject();
+      wait(1);
+    }
+  }
   // while (1) { ; }
 }
 
@@ -174,6 +194,8 @@ void init() {
 
   clawTo(RELEASE_ANGLE);
   platformMove("down");
+  servo(HOOK_SERVO, 120);
+  servo(TURNPLATE_SERVO, 60);
 
   objectColor = 0;
   int i; for(i=1; i<=5; i++) catchedNum[i] = 0;
@@ -190,7 +212,8 @@ void correctSensors() {
     locate(5,1); printf("b3:%3d b4:%3d", geteadc(7), geteadc(8));  
     locate(6,1); printf("l:%3d r:%3d dis=%3d", getadc(1), getadc(2), getadc(5));  
     locate(7,1); printf("cA=%3d cB=%3d", getadc(3), getadc(4));  
-    locate(8,1); printf("col=%d", objectColor);              
+    locate(8,1); printf("color=%d", objectColor);
+    locate(9,1); printf("u:%d m:%d d:%d", PLATFORM_UP, PLATFORM_MID, PLATFORM_DOWN);            
     wait(0.1);
   }
 }
@@ -304,8 +327,10 @@ void moveTo(int destination) {
   if (position_ == destination) {
     return;
   }
-  if (getDirectionByPos(position_) == getDirectionByPos(destination)) {
-    // TODO
+  if (getDirectionByPos(position_) == getDirectionByPos(destination) && position_ < destination) {
+    moveWithCountingLine(1, 1, FAST_SPEED);
+    approachTarget();
+
   }
   else {
     moveToCenter(); // first, move to center
@@ -313,6 +338,7 @@ void moveTo(int destination) {
     moveWithTime(1, 1, FAST_SPEED);
     moveFromCenterTo(destination); // finally, move to destination from center
   }
+  position_ = destination;
 }
 
 // function : move robot to center
@@ -418,11 +444,11 @@ void turnWithCountingLine(int lineNum, int op) {
   lineNum = 1;
   if (op > 0) {
     sid = "f3";
-    setSpeed(SLOW_SPEED, -SLOW_SPEED);
+    setSpeed(MID_SPEED, -MID_SPEED);
   }
   else {
     sid = "f2";
-    setSpeed(-SLOW_SPEED, SLOW_SPEED);
+    setSpeed(-MID_SPEED, MID_SPEED);
   }
   countLine("init");
   while (lineNum) {
@@ -498,7 +524,6 @@ void approachTarget() {
     else {
       cnt = 0;
       if (objectNear()) speed = SLOW_SPEED;
-      else if(objectCatchable()) speed = VERY_SLOW_SPEED;
       else speed = MID_SPEED;
 
       if (s2 && !s3) {
@@ -581,9 +606,19 @@ void clawTo(int angle) {
 }
 
 // function : catch object
-// you should make sure object is in front of you and not too far
+// you should make sure object is close enough to be caught
 int catchObject() {
   clawTo(RELEASE_ANGLE);
+  platformMove("down");
+  clawTo(CATCH_ANGLE);
+  wait(0.5);
+    return colorDiscrimination();
+}
+
+// you should make sure object is in front of you and not too far
+int autoCatchObject() {
+  clawTo(RELEASE_ANGLE);
+  platformMove("down");
   if (objectNear()) {
     setSpeed(SLOW_SPEED, SLOW_SPEED);
     while(!objectCatchable()) { ; }
@@ -663,7 +698,9 @@ int catchObjectByHook(int id, int op) {
   clawTo(WHIDE_ANGLE);
   servo(HOOK_SERVO, 120);
   servo(TURNPLATE_SERVO, turnplateAngle[op][id]);
-  approachTarget();
+  
+  // TODO
+
   servo(HOOK_SERVO, 60); wait(0.2);
   servo(HOOK_SERVO, 55); wait(0.2);
   servo(HOOK_SERVO, 50); wait(0.2);
@@ -676,7 +713,7 @@ int catchObjectByHook(int id, int op) {
   servo(HOOK_SERVO, 60); wait(0.2);
   servo(HOOK_SERVO, 120); wait(0.2);
   setSpeed(0, 0);
-  return catchObject();
+  return autoCatchObject();
 }
 
 
