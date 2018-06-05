@@ -98,8 +98,8 @@ void setSpeed(int leftSpeed, int rightSpeed);
 void throwError(char* where, char* errLog);
 int equal(int a,int b,int x);
 void init();
-int checkdirValid(int checkNum);
-int checkValid(int checkNum, int minNum, int maxNum);
+int checkDirection(int dir);
+int checkPosition(int pos);
 
 
 int main(void) 
@@ -134,7 +134,15 @@ int main(void)
         moveToCenter();
     }
     else if (op == 7) {
+        init();
         runTask1();
+    }
+    else if (op == 8) {
+        init();
+        int a = catchObject();
+        cls();
+        printf("%d",a);
+        while(1){;}
     }
   // while (1) { ; }
 }
@@ -154,6 +162,7 @@ void init() {
 void transferForTask1(int pos) {
   //浠庡摢涓湴鏂瑰彇鐗╁潡锛岃嚜鍔ㄦ惉杩愶拷?
   moveTo(pos);
+    sound(300,1);
   int color = catchObject();
   int destination = colorToPosition[color];
   if(cannotTransfer[destination]) {
@@ -254,7 +263,13 @@ void moveTo(int destnation) {
     return;
   }
   moveToCenter(); // first, move to center
+    wait(1);
+    /*
+    *@@@icy
+    */
+    
   turnToOnCenter(getDirectionByPos(destnation)); // then, turn to destnation's direction
+    wait(1);
   moveFromCenterTo(destnation); // finally, move to destnation from center
 }
 
@@ -326,7 +341,7 @@ void moveWithCountingLine(int lineNum, int op) {
       lineNum --;
     }
   }
-
+    wait(0.2);
   setSpeed(0, 0);
 }
 
@@ -503,8 +518,13 @@ void clawTo(int angle) {
 // you should make sure object is in front of you and not too far
 int catchObject() {
   clawTo(RELEASE_ANGLE);
+    sound(500,0.3);
+    sound(500,0.3);
+    sound(500,0.3);
   if (!objectNear()) {
     setSpeed(SLOW_SPEED, SLOW_SPEED);
+        sound(200,0.3);
+        sound(200,0.3);
     while(!objectNear()) { ; }
     setSpeed(0, 0);
   }
@@ -597,40 +617,39 @@ int catchObjectByHook(int id, int op) {
 
 
 int getDirectionByPos(int pos) {
-  checkValid(pos, 0, 15);
-  if (pos == 15){
-    throwError("getDirByPos", "getCenter");
+  checkPosition(pos);
+  if (pos == 16){
+    throwError("getDirByPos", "get center");
   }
   return pos % 8;
 }
 
 int getLineNumToCenter(int pos) {
-  return 3; 
+  checkPosition(pos);
+    return pos/16 + 2;
 }
 
 int getLineNumWhenTurnTo(int tarDir) {
-  if(checkdirValid(tarDir) == 0){
-    throwError("reverseDir", "dir is invalid");
-  }
-  int _lines = tarDir - direction;
-  if(_lines > 4) _lines -= 8;
-  else if(_lines < -4) _lines += 8;
-  return _lines;
+  checkDirection(tarDir);
+  int lineNum = tarDir - direction;
+  if(lineNum > 4) lineNum -= 8;
+  else if(lineNum < -4) lineNum += 8;
+  return lineNum;
 }
 
-//check num in [min, max]
-int checkValid(int checkNum, int minNum, int maxNum) {
-  if(checkNum >= minNum && checkNum <= maxNum){
-    return 1;
-  } else return 0;
+void checkDirection(int dir) {
+  if (dir < 0 || dir > 7) {
+    throwError("checkDirection", "")
+  }
 }
-int checkdirValid(int checkNum) {
-  return checkValid(checkNum, 0, 7);
+
+void checkPosition(int pos) {
+  if (pos < 0 || pos > 16) {
+    throwError("checkPosition", "");
+  }
 }
 
 int reverseDirection(int dir) {
-  if(checkdirValid(dir) == 0){
-    throwError("reverseDir", "dir is invalid");
-  }
+  checkDirection(dir);
   return reDirection[dir];
 }
