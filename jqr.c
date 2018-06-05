@@ -1,20 +1,6 @@
 // 18.5.29
 // by ftm
 
-// for dev
-void motor(int x, int y) {}
-void servo(int x, int y) {}
-int seconds(int x) { return 0; }
-void cls() {}
-void locate(int x, int y) {}
-int getadc(int x) { return 0; }
-int geteadc(int x) { return 0; }
-void wait(float x) {}
-int getport(int x) { return 0; }
-int selector() { return 0; }
-void sound(int x, int y) {}
-#include <stdio.h>
-
 // const datas
 int frontBaceValue[] = { -1, 443, 609, 431, 408 };
 int backBaceValue[] = { -1, 667, 643, 554, 456 };
@@ -63,6 +49,7 @@ int cannotTransfer [20] = { 0 };
 int tmpObject = 0;//涓嶈兘鐩存帴閫佸埌缁堢偣锛岄渶瑕佷复鏃跺瘎锟?
 int tmpObjectTo[3] = { 0, 7, 5 };
 int cntW, cntB, crossingLine;
+int reDirection[8] = {4, 5, 6, 7, 0, 1, 2, 3};
 
 // robot datas
 int position;
@@ -109,9 +96,12 @@ void setSpeed(int leftSpeed, int rightSpeed);
 void throwError(char* where, char* errLog);
 int equal(int a,int b,int x);
 void init();
+int checkdirValid(int checkNum);
+int checkValid(int checkNum, int minNum, int maxNum);
+
 
 int main() {
-  sound(500, 500); wait(1);
+  // sound(500, 500); wait(1.0);
 
   int op = selector();
   if (op == 0) {
@@ -337,10 +327,10 @@ void moveWithCountingLine(int lineNum, int op) {
 // function : line track whih time limit
 // op > 0, move front; op < 0, move back 
 void moveWithTime(float timeLimit, int op) {
-  float startTime = second(1);
-  while (second(1) - startTime < timeLimit) {
-    trickLine(op);
-  }
+  // float startTime = seconds(1);
+  // while (seconds(1) - startTime < timeLimit) {
+  //  trickLine(op);
+  // }
 }
 
 // function : rotate whih counting line
@@ -487,6 +477,7 @@ void throwError(char* where, char* errLog) {
   locate(1,1); printf("ERROR");
   locate(2,1); printf("at %s", where);
   locate(3,1); printf("%s", errLog);
+    setSpeed(0, 0);
   while (1) { ; }
 } 
 
@@ -596,17 +587,21 @@ int catchObjectByHook(int id, int op) {
   return catchObject();
 }
 
+
 int getDirectionByPos(int pos) {
   checkValid(pos, 0, 15);
   if (pos == 15){
     throwError("getDirByPos", "getCenter");
-  } else return pos % 8;
+  }
+  return pos % 8;
 }
+
 int getLineNumToCenter(int pos) {
   return 0;
 }
+
 int getLineNumWhenTurnTo(int tarDir) {
-  if(checkdirValid(dir) == 0){
+  if(checkdirValid(tarDir) == 0){
     throwError("reverseDir", "dir is invalid");
   }
   int _lines = tarDir - direction;
@@ -614,6 +609,7 @@ int getLineNumWhenTurnTo(int tarDir) {
   else if(_lines < -4) _lines += 8;
   return _lines;
 }
+
 //check num in [min, max]
 int checkValid(int checkNum, int minNum, int maxNum) {
   if(checkNum >= minNum && checkNum <= maxNum){
@@ -627,6 +623,6 @@ int checkdirValid(int checkNum) {
 int reverseDirection(int dir) {
   if(checkdirValid(dir) == 0){
     throwError("reverseDir", "dir is invalid");
-  } else return reDirection[dir];
+  }
+  return reDirection[dir];
 }
-
