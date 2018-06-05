@@ -95,6 +95,7 @@ void platformMove(char* op); // ????????,??:"up","mid","down"
 int catchObjectByHook(int id, int op); // ????????????????
 
 int onLine(char* op);
+int onLineDebounce(char* op);
 int objectNear();
 int colorDiscrimination();
 
@@ -316,6 +317,43 @@ int onLine(char* op) {
   // else all
   throwError("onLine", "unknown sensor type");
   return 0;
+}
+
+int onLineDebounce(char* op) {
+  int x, val, delta = 30;
+  if (op[0] == 'f') {
+    x = op[1] - '0';
+    if (x >= 1 && x <= 4) {
+      val = geteadc(x);
+      if (val >= frontBaceValue[x] + delta) return 1;
+      else if (val <= frontBaceValue[x] - delta) return 0;
+      else return -1;
+    }
+  }
+  if (op[0] == 'b') {
+    x = op[1] - '0';
+    if (x >= 1 && x <= 4) {
+      val = geteadc(x + 4);
+      if (val >= backBaceValue[x] + delta) return 1;
+      else if (val <= backBaceValue[x] - delta) return 0;
+      else return -1;
+    }
+  }
+  if (op[0] == 'l') {
+    val = getadc(1);
+    if (val >= leftBaceValue + delta) return 1;
+    else if (val <= leftBaceValue - delta) return 0;
+    else return -1;
+  }
+  if (op[0] == 'r') {
+    val = getadc(2);
+    if (val >= rightBaceValue + delta) return 1;
+    else if (val <= rightBaceValue - delta) return 0;
+    else return -1;
+  }
+
+  throwError("onLine", "unknown sensor type");
+  return -1;
 }
 
 // function : check whether an object is close to robot 
@@ -565,14 +603,11 @@ int countLine(char* sid) {
     return 0;
   }
 
-  if (onLine(sid)) { 
-    if (cntB < 100) cntB ++; 
-    cntW = 0;
-  }
-  else {
-    if (cntW < 100) cntW ++;
-    cntB = 0; 
-  }
+  int flag = onLineDebounce(sid);
+  if (flag == 1) { if (cntB < 100) cntB ++; } 
+  else { cntB = 0; }
+  if (flag == 0) { if (cntW < 100) cntW ++; }
+  else { cntW = 0; }
 
   int t = seconds(1);
   if (cntB >= 5 && !crossingLine && t > timeLock) {
