@@ -1,20 +1,11 @@
-// 18.5.27
 // 18.5.28
 // by ftm
 
 // const datas
-#define VALUE_SENSOR_FRONT_1 x
-#define VALUE_SENSOR_FRONT_2 x
-#define VALUE_SENSOR_FRONT_3 x
-#define VALUE_SENSOR_FRONT_4 x
-#define VALUE_SENSOR_BACK_1 x
-#define VALUE_SENSOR_BACK_2 x
-#define VALUE_SENSOR_BACK_3 x
-#define VALUE_SENSOR_BACK_4 x
-#define VALUE_SENSOR_LEFT x
-#define VALUE_SENSOR_RIGHT x
-#define VALUE_SENSOR_WHITE x
-#define VALUE_SENSOR_GREEN x
+int sensorBaceValueFront[] = {};
+int sensorBaceValueBack[] = {};
+int sensorBaceValueLeft = x;
+int sensorBaceValueRight = x;
 
 #define POS_CENTER x
 
@@ -28,6 +19,44 @@
 int position;
 int direction;
 
+
+// function : check if a ground sensor is on line
+// examples: onLine("f1"); onLine("b3"); onLine("l"); onLine("r");
+int onLine(char* op) {
+  // front : f1~4 -> eacd1~4
+  if (op[0] == 'f') {
+    int x = op[1] - '0';
+    if (x >= 1 && x <= 4) {
+      int val = geteadc(x);
+      if (val < sensorBaceValueFront[x]) return 0;
+      else return 1;
+    }
+  }
+  // back : b1~4 -> eacd5~8
+  if (op[0] == 'b') {
+    int x = op[1] - '0';
+    if (x >= 1 && x <= 4) {
+      int val = geteadc(x + 4);
+      if (val < sensorBaceValueBack[x]) return 0;
+      else return 1;
+    }
+  }
+  // left : l -> acd1
+  if (op[0] == 'l') {
+    int val = getadc(1);
+    if (val < sensorBaceValueLeft) return 0;
+    else return 1;
+  }
+  // right : r -> acd2
+  if (op[0] == 'r') {
+    int val = getadc(2);
+    if (val < sensorBaceValueRight) return 0;
+    else return 1;
+  }
+
+  // else all
+  throwError("onLine", "unknown sensor type");
+}
 
 // function : move robot from it's positon to destnation
 void moveTo(int destnation) {
