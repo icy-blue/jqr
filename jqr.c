@@ -12,9 +12,11 @@ int colorB_baceValue[] = { -1 };
 
 int colorToPosition[] = { -1, 11, 12, 8, 9, 10 };
 
-int turnplateAngle[2][6] = { { -1, 49, 73, 78, 59, 45 },
+int turnplateAngle[3][6] = { { -1, -1, -1, -1, -1, -1 },
+               { -1, 49, 73, 78, 59, 45 },
                { -1, 73, 50, 40, 60, 78 } };
-int turnplateBackAngle[2][6] = { { -1, 65, 60, 60, 65, 65 },
+int turnplateBackAngle[3][6] = { { -1, -1, -1, -1, -1, -1 },
+                 { -1, 65, 60, 60, 65, 65 },
                    { -1, 60, 65, 65, 65, 60 } };
 
 
@@ -27,14 +29,14 @@ int turnplateBackAngle[2][6] = { { -1, 65, 60, 60, 65, 65 },
 
 #define FAST_SPEED 700
 #define MID_SPEED 400
-#define SLOW_SPEED 100
-#define VERY_SLOW_SPEED 50
+#define SLOW_SPEED 200
+#define VERY_SLOW_SPEED 100
 
 #define CLAW_SERVO 4
 #define HOOK_SERVO 3
 #define TURNPLATE_SERVO 2
 
-#define PLATFORM_MOTOR 2
+#define PLATFORM_MOTOR 3
 #define LEFT_MOTOR 4
 #define RIGHT_MOTOR 1
 
@@ -45,11 +47,11 @@ int turnplateBackAngle[2][6] = { { -1, 65, 60, 60, 65, 65 },
 #define OBJECT_NEAR_SENSOR_VALUE 600
 
 // temp vars 
-int cannotTransfer [20] = { 0 };
-int tmpObject = 0;//涓嶈兘鐩存帴閫佸埌缁堢偣锛岄渶瑕佷复鏃跺瘎锟?
-int tmpObjectTo[3] = { 0, 7, 5 };
+int cannotTransfer[20] = { 0 };
+int tmpObject = 0; //涓嶈兘鐩存帴閫佸埌缁堢偣锛岄渶瑕佷复鏃跺瘎锟?
+int tmpObjectTo[] = { 0, 7, 5 };
 int cntW, cntB, crossingLine;
-int reDirection[8] = {4, 5, 6, 7, 0, 1, 2, 3};
+int reDirection[] = { 4, 5, 6, 7, 0, 1, 2, 3 };
 
 // robot datas
 int position;
@@ -58,7 +60,7 @@ int calwState; // 1catch 2release 3wide
 int platformState; // 3up 2mid 1down
 // 棰滆壊锟?锟?1锟?2锟?3锟?4锟?5锟?
 int objectColor;
-int catchedNum[9] = {0}; // 宸茬粡鎶撳彇鐨勭墿鍧楃殑涓暟
+int catchedNum[10] = { 0 }; // 宸茬粡鎶撳彇鐨勭墿鍧楃殑涓暟
 
 // functions
 void runTask1();
@@ -100,7 +102,8 @@ int checkdirValid(int checkNum);
 int checkValid(int checkNum, int minNum, int maxNum);
 
 
-int main() {
+int main(void) 
+{
   // sound(500, 500); wait(1.0);
 
   int op = selector();
@@ -127,10 +130,13 @@ int main() {
     init();
     moveTo(8);
   }
-
-  while (1) { ; }
-  
-  return 0;
+    else if (op == 6) {
+        moveToCenter();
+    }
+    else if (op == 7) {
+        runTask1();
+    }
+  // while (1) { ; }
 }
 
 // init robot datas
@@ -327,10 +333,11 @@ void moveWithCountingLine(int lineNum, int op) {
 // function : line track whih time limit
 // op > 0, move front; op < 0, move back 
 void moveWithTime(float timeLimit, int op) {
-  // float startTime = seconds(1);
-  // while (seconds(1) - startTime < timeLimit) {
-  //  trickLine(op);
-  // }
+  float startTime = seconds(1);
+  while (seconds(1) - startTime < timeLimit) {
+    trickLine(op);
+  }
+    setSpeed(0, 0);
 }
 
 // function : rotate whih counting line
@@ -410,7 +417,7 @@ void approachTarget() {
     s3 = onLine("f3");
     s4 = onLine("f4");
 
-    if ((s2 && s3) || (s1 && s4)) {
+    if (s1 && s4) {
       setSpeed(VERY_SLOW_SPEED, VERY_SLOW_SPEED);
       if (cnt < 100) cnt ++;
     }
@@ -478,6 +485,7 @@ void throwError(char* where, char* errLog) {
   locate(2,1); printf("at %s", where);
   locate(3,1); printf("%s", errLog);
     setSpeed(0, 0);
+    sound(500, 2000);
   while (1) { ; }
 } 
 
@@ -597,7 +605,7 @@ int getDirectionByPos(int pos) {
 }
 
 int getLineNumToCenter(int pos) {
-  return 0;
+  return 3; 
 }
 
 int getLineNumWhenTurnTo(int tarDir) {
