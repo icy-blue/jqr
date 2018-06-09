@@ -1,10 +1,10 @@
-// 18.6.6
+// 18.6.8
 // by FuTaimeng
-// update : new timeLock in countLine to inprove count accuracy
-// update : new claw state "loose" to protect claw servo
-// update : add some wait(0.5) in moveTo to improve stability
-// fix bug : [in catchObjectByHook] setSpeed(0, 0)
-// fix bug : [in countLine] float t, timeLock
+// fix bug : unused accomplishObjectNum[] (pre name: catchedNum[])
+// update : redact func autoPlatformMove
+// update : add it in approachTarget, remove it in transformForTask2
+// complished successfully.
+// TODO : test modules
 
 // for dev
 // void motor(int x, int y) {}
@@ -81,7 +81,7 @@ int direction_;
 int calwState; // 1catch 2release 3wide
 int platformState; // 3up 2mid 1down
 int objectColor;
-int catchedNum[10] = { 0 };
+int accomplishedObjectNum[10] = { 0 };
 int cannotTransfer[20] = { 0 };
 int tmpObject;
 
@@ -96,6 +96,7 @@ void moveTo(int destination);
 int catchObject();
 void releaseObject();
 void platformMove(char* op);
+void autoPlatformMove();
 int catchObjectByHook(int id, int op);
 
 int onLine(char* op);
@@ -217,7 +218,7 @@ void init() {
   servo(TURNPLATE_SERVO, 60);
 
   objectColor = 0;
-  int i; for(i = 1; i <= 5; i++) catchedNum[i] = 0;
+  int i; for(i = 1; i <= 5; i++) accomplishedObjectNum[i] = 0;
 
   tmpObject = 0;
   for (i = 0; i <= 16; i++) cannotTransfer[i] = 0;
@@ -250,16 +251,17 @@ void transferForTask1(int pos) {
   }
   moveTo(destination);
   releaseObject();
+
+  if (destination == getPosByColor(color)) {
+    accomplishedObjectNum[color] ++;
+  }
 }
 
 void runTask1() {
   cannotTransfer[8] = cannotTransfer[10] = cannotTransfer[12] = 1;
   transferForTask1(2);
-  cannotTransfer[10] = 0;
   transferForTask1(4);
-  cannotTransfer[12] = 0;
   transferForTask1(0);
-  cannotTransfer[8] = 0;
   int i; for(i = 1; i <= tmpObject; i++) {
     transferForTask1(tmpObjectTo[i]);
   }
@@ -270,19 +272,9 @@ void transferForTask2(int pos) {
     moveTo(pos);
     int color = catchObjectByHook(i, pos==15 ? 1 : 2);
     int destination = getPosByColor(color);
-    if(color == -1) {
-      throwError("transferForTask2", "color is 0!");
-    }
-    char* op;
-    switch (catchedNum[color]) {
-      case 0 : op = "down"; break;
-      case 1 : op = "mid"; break;
-      case 2 : op = "up"; break;
-      default: throwError("catchedNum", "");
-    }
-    platformMove(op);
     moveTo(destination);
     releaseObject();
+    accomplishedObjectNum[color] ++;
   }
 }
 
@@ -560,6 +552,8 @@ void approachTarget() {
   int cnt = 0;
   int speed = MID_SPEED;
 
+  autoPlatformMove();
+
   while(1) {
     s1 = onLine("f1");
     s2 = onLine("f2");
@@ -732,6 +726,17 @@ void platformMove(char* op) {
   }
   else {
     throwError("platformMove", "unknown order");
+  }
+}
+
+void autoPlatformMove() {
+  if (objectColor >= 1 && objectColor <= 5) {
+    switch (accomplishedObjectNum[objectColor]) {
+      case 0 : platformMove("down"); break;
+      case 1 : platformMove("mid"); break;
+      case 2 : platformMove("up"); break;
+      default: throwError("autoPlatformMove", "accomplishedObjectNum");
+    }
   }
 }
 
