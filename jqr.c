@@ -1,6 +1,10 @@
-// 18.6.5
-// by ftm
-// countLine update : timeLock
+// 18.6.6
+// by FuTaimeng
+// update : new timeLock in countLine to inprove count accuracy
+// update : new claw state "loose" to protect claw servo
+// update : add some wait(0.5) in moveTo to improve stability
+// fix bug : [in catchObjectByHook] setSpeed(0, 0)
+// fix bug : [in countLine] float t, timeLock
 
 // for dev
 // void motor(int x, int y) {}
@@ -62,24 +66,24 @@ int task2ApproachTime[6] = { -1, 2.25, 2.25, 3.25, 3.75, 3.25 };
 #define LEFT_MOTOR 4
 #define RIGHT_MOTOR 1
 
-#define CATCH_ANGLE 80
-#define RELEASE_ANGLE 60
-#define WHIDE_ANGLE 40
+#define CATCH_ANGLE 80 // 1
+#define LOOSE_ANGLE 70 // 4
+#define RELEASE_ANGLE 60 // 2
+#define WHIDE_ANGLE 50 // 3
 
 #define OBJECT_NEAR_SENSOR_VALUE 400
 
-int cntW, cntB, crossingLine, timeLock;
+int cntW, cntB, crossingLine; float timeLock;
 
 // robot datas
 int position_;
 int direction_;
 int calwState; // 1catch 2release 3wide
 int platformState; // 3up 2mid 1down
-// ??????1??2??3??4??5??
 int objectColor;
-int catchedNum[10] = { 0 }; // ??????????
+int catchedNum[10] = { 0 };
 int cannotTransfer[20] = { 0 };
-int tmpObject; //????????,???????
+int tmpObject;
 
 // functions
 void runTask1();
@@ -88,11 +92,11 @@ void runTask2();
 void transferForTask2(int pos);
 void correctSensors();
 
-void moveTo(int destination); // ??????????????
-int catchObject(); // ??????,???????
-void releaseObject(); // ??????
-void platformMove(char* op); // ????????,??:"up","mid","down"
-int catchObjectByHook(int id, int op); // ????????????????
+void moveTo(int destination);
+int catchObject();
+void releaseObject();
+void platformMove(char* op);
+int catchObjectByHook(int id, int op);
 
 int onLine(char* op);
 int onLineDebounce(char* op);
@@ -213,7 +217,7 @@ void init() {
   servo(TURNPLATE_SERVO, 60);
 
   objectColor = 0;
-  int i; for(i=1; i<=5; i++) catchedNum[i] = 0;
+  int i; for(i = 1; i <= 5; i++) catchedNum[i] = 0;
 
   tmpObject = 0;
   for (i = 0; i <= 16; i++) cannotTransfer[i] = 0;
@@ -237,7 +241,6 @@ void correctSensors() {
 }
 
 void transferForTask1(int pos) {
-  //????????,??????
   moveTo(pos);
   int color = catchObject();
   int destination = getPosByColor(color);
@@ -374,10 +377,12 @@ void moveTo(int destination) {
 
   }
   else {
-    moveToCenter(); // first, move to center
-    turnToOnCenter(getDirectionByPos(destination)); // then, turn to destination's direction
-    moveWithTime(0.5, 1, FAST_SPEED);
-    moveFromCenterTo(destination); // finally, move to destination from center
+    // first, move to center
+    moveToCenter(); wait(0.5);
+    // then, turn to destination's direction
+    turnToOnCenter(getDirectionByPos(destination)); wait(0.5); 
+    // finally, move to destination from center
+    moveFromCenterTo(destination); wait(0.5);
   }
   position_ = destination;
 }
@@ -391,13 +396,12 @@ void moveToCenter() {
   if (direction_ == getDirectionByPos(position_)) {
     moveWithCountingLine(getLineNumToCenter(position_) - 1, -1, FAST_SPEED);
     moveWithCountingLine(1, -1, MID_SPEED);
-    // moveWithTime(0.05, -1, MID_SPEED);
+    moveWithTime(0.1, -1, SLOW_SPEED);
   }
   else {
     throwError("moveToCenter", "not back to center");
   }
   position_ = POS_CENTER;
-  wait(0.1);
 }
 
 // function : turn the robot to targetDirection
@@ -446,7 +450,7 @@ void moveWithCountingLine(int lineNum, int op, int speed) {
   while (lineNum) {
     trackLine(op, speed);
     if (countLine("l")) {
-      sound(1000, 50);
+      sound(5000, 10);
       lineNum --;
     }
   }
@@ -482,7 +486,7 @@ void turnWithCountingLine(int lineNum, int op) {
   while (lineNum) {
     if (countLine(sid)) {
       lineNum --;
-      sound(1000, 50);
+      sound(5000, 10);
     }
   }
 
@@ -599,9 +603,13 @@ void approachTarget() {
 // before use, countLine("init") first
 int countLine(char* sid) {
   if (sid[0] == 'i') {
-    cntW = 0; cntB = 0; crossingLine = 0; timeLock = 0;
+    cntW = 0; cntB = 0; crossingLine = 0; timeLock = 0.0;
     return 0;
   }
+
+  float t = seconds(1);
+  if (t < timeLock) { return 0; }
+  timeLock = t + 0.001;
 
   int flag = onLineDebounce(sid);
   if (flag == 1) { if (cntB < 100) cntB ++; } 
@@ -609,12 +617,11 @@ int countLine(char* sid) {
   if (flag == 0) { if (cntW < 100) cntW ++; }
   else { cntW = 0; }
 
-  int t = seconds(1);
-  if (cntB >= 5 && !crossingLine && t > timeLock) {
-    crossingLine = 1; timeLock = t + 0.005;
+  if (cntB >= 5 && !crossingLine) {
+    crossingLine = 1;
   } 
-  else if (cntW >= 5 && crossingLine && t > timeLock) {
-    crossingLine = 0; timeLock = t + 0.005;
+  else if (cntW >= 5 && crossingLine) {
+    crossingLine = 0;
     return 1;
   }
   return 0;
@@ -635,7 +642,7 @@ void throwError(char* where, char* errLog) {
   locate(2,1); printf("at %s", where);
   locate(3,1); printf("%s", errLog);
     setSpeed(0, 0);
-    sound(500, 1000);
+    sound(1000, 1000);
   while (1) { ; }
 } 
 
@@ -645,6 +652,7 @@ void clawTo(int angle) {
     case CATCH_ANGLE : calwState = 1; break;
     case RELEASE_ANGLE : calwState = 2; break;
     case WHIDE_ANGLE : calwState = 3; break;
+    case LOOSE_ANGLE : calwState = 4; break;
     default : calwState = 0;
   }
 }
@@ -656,11 +664,16 @@ int catchObject() {
   platformMove("down");
   clawTo(CATCH_ANGLE);
   wait(0.5);
-    return colorDiscrimination();
+    colorDiscrimination();
+  clawTo(LOOSE_ANGLE);
+  wait(0.5);
+  return objectColor;
 }
 
 // function : release object
 void releaseObject() {
+  clawTo(CATCH_ANGLE);
+  wait(0.5);
   clawTo(RELEASE_ANGLE);
   wait(0.5);
 }
@@ -673,7 +686,7 @@ int colorDiscrimination() {
      && equal(getadc(4), colorB_baceValue[i], 50)) 
     { objectColor = i; break; }
   }
-  for(i = 1; i <= objectColor; i++) { sound(500,100); wait(0.1); }
+  for(i = 1; i <= objectColor; i++) { sound(1000, 100); wait(0.1); }
   return objectColor;
 }
 
@@ -686,6 +699,9 @@ int equal(int a,int b,int x) {
 void platformMove(char* op) {
   if (calwState == 3) {
     clawTo(RELEASE_ANGLE);
+  }
+  if (calwState == 3) {
+    clawTo(CATCH_ANGLE);
   }
   if (op[0] == 'u') {
     motor(PLATFORM_MOTOR, -400); 
@@ -739,9 +755,9 @@ int catchObjectByHook(int id, int op) {
   servo(HOOK_SERVO, 60); wait(0.2);
   servo(HOOK_SERVO, 120); wait(0.2);
   setSpeed(SLOW_SPEED, SLOW_SPEED); wait(2);
+  setSpeed(0, 0);
   return catchObject();
 }
-
 
 int getDirectionByPos(int pos) {
   checkPosition(pos);
